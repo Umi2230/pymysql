@@ -36,10 +36,12 @@ def sql_query(query, params=None):
 
 
 def get_category_chart_data() -> list[dict[str, int]]:
-    # 計算每個主類別的產品訂單數量
+    # 計算每個主類別的數量
     category_query = """
-    
+        SELECT category label, COUNT(*) value FROM products GROUP BY category;
     """
+
+    result = sql_query(category_query)
 
     """
     將資料整理成
@@ -50,13 +52,12 @@ def get_category_chart_data() -> list[dict[str, int]]:
     ]
     """
 
-
-    return ""
+    return result
 
 def get_sub_category_chart_data(category):
-    # 計算某個主類別，其子類別的產品訂單數量
+    # 計算某個主類別，其子類別的數量
     sub_category_query = """
-
+        SELECT sub_category label, COUNT(*) value FROM products WHERE category = %s GROUP BY sub_category;
     """
 
     """
@@ -68,16 +69,20 @@ def get_sub_category_chart_data(category):
     ]
     """
 
-    return ""
+    result = sql_query(sub_category_query, category)
+
+    return result
 
 def get_products_and_order_details():
     # 取得 products 和 order_details 的資料
     products_order_details_query = """
-
+        SELECT category, sub_category, product_name, SUM(sales) as sales, SUM(profit) as profit FROM products as p
+        JOIN OrderDetails as o ON p.product_id = o.product_id
+        GROUP BY category, sub_category, product_name;
     """
 
     """
-    從 SQL 取得以下資料 join
+    從 SQL 取得以下資料
     products_and_order_details_result = [
         {'category': 'Furniture', 'sub_category': 'Bookcases', 'product_name': 'Bush Birmingham Collection Bookcase, Dark Cherry', 'sales': Decimal('825.17'), 'profit': Decimal('-14.29')}, 
         {'category': 'Furniture', 'sub_category': 'Bookcases', 'product_name': 'Sauder Camden County Barrister Bookcase, Planked Cherry Finish', 'sales': Decimal('1064.62'), 'profit': Decimal('2.27')},
@@ -88,8 +93,10 @@ def get_products_and_order_details():
     ];
     """
 
-    products_and_order_details_result = []
-    sub_category = []
+    products_and_order_details_result = sql_query(products_order_details_query)
+    products_and_order_details_result = [{**i, 'profit': round(i['profit']/i['sales']*100, 2)} for i in products_and_order_details_result]
+    # 所有 sub_category (要去重複)
+    sub_category = list(set(i['sub_category'] for i in products_and_order_details_result))
 
     # 回傳 products_and_order_details_result 以及 所有的子類別名稱
     return products_and_order_details_result, sub_category
